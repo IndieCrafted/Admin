@@ -10,7 +10,11 @@
       <el-table-column label="厂牌" prop="brand"></el-table-column>
       <el-table-column label="风格" prop="style" width="100"></el-table-column>
       <el-table-column label="规格" prop="spec" width="60"></el-table-column>
-      <el-table-column label="价格" prop="price" width="60"></el-table-column>
+      <el-table-column label="价格" width="60">
+        <template slot-scope="scope">
+          {{ ~~scope.row.price }}
+        </template>
+      </el-table-column>
       <el-table-column label="状态" width="60">
         <template slot-scope="scope">
           {{ scope.row.status ? '销售中' : '已下架' }}
@@ -25,6 +29,19 @@
         </template>
       </el-table-column>
     </el-table>
+    <div class="table-footer">
+      <div class="pagination">
+        <el-pagination
+          @size-change="handleSizeChange"
+          @current-change="handleCurrentChange"
+          :current-page="pagination.currentPage"
+          :page-size="pagination.pageSize"
+          :page-sizes="[10, 20, 30, 50]"
+          :total="pagination.total"
+          layout="total, sizes, prev, pager, next, jumper"
+        />
+      </div>
+    </div>
     <el-dialog :title="beerFormTitle" :visible.sync="isBeerFormVisible">
       <el-form size="mini" :model="beerForm" ref="beerForm" :rules="beerFormRule">
         <el-form-item label="编号" prop="number" label-width="80px">
@@ -70,10 +87,18 @@
 </template>
 
 <script>
+import * as api from '@/api/beer'
+
 export default {
   data () {
     return {
       tableData: [],
+      pagination: {
+        currentPage: 1,
+        pageSize: 10,
+        total: 0
+      },
+      currentBeer: {},
       isBeerFormVisible: false,
       beerFormType: 'add',
       beerFormTitle: '新增啤酒信息',
@@ -105,45 +130,30 @@ export default {
     this.queryBeerList()
   },
   methods: {
-    queryBeerList () {
-      this.tableData = [
-        {
-          number: 4,
-          brand: '气泡实验室',
-          name: '及时雨浑浊IPA',
-          enName: 'Bubble Lab Juicy Rain New England IPA',
-          origin: '嘉善',
-          style: '印度复古艾尔',
-          vol: 7.2,
-          spec: 400,
-          price: 40,
-          status: 0
-        },
-        {
-          number: 4,
-          brand: '气泡实验室',
-          name: '及时雨浑浊IPA',
-          enName: 'Bubble Lab Juicy Rain New England IPA',
-          origin: '嘉善',
-          style: '浑浊IPA',
-          vol: 7.2,
-          spec: 400,
-          price: 40,
-          status: 0
-        },
-        {
-          number: 4,
-          brand: '气泡实验室',
-          name: '及时雨浑浊IPA',
-          enName: 'Bubble Lab Juicy Rain New England IPA',
-          origin: '嘉善',
-          style: '浑浊IPA',
-          vol: 7.2,
-          spec: 400,
-          price: 40,
-          status: 0
+    async queryBeerList () {
+      try {
+        const { currentPage, pageSize } = this.pagination
+        const res = await api.getBeerList({
+          currentPage,
+          pageSize
+        })
+        const result = res.data.data
+        if (result.code) {
+          this.$message({
+            type: 'error',
+            message: result.msg
+          })
+          return
         }
-      ]
+        this.tableData = result.iData
+        this.pagination.total = result.total
+      } catch (e) {
+        console.log(e)
+        this.$message({
+          type: 'error',
+          message: '更新列表失败'
+        })
+      }
     },
     showAddForm () {
       this.beerFormType = 'add'
@@ -165,16 +175,64 @@ export default {
     showUpdateForm (row) {
       this.beerFormType = 'update'
       this.beerFormTitle = '修改啤酒信息'
-      this.beerForm = {
-        ...row
-      }
+      this.currentBeer = { ...row }
+      this.beerForm = { ...row }
       this.isBeerFormVisible = true
     },
-    addBeer () {
-      console.log('add')
+    async addBeer () {
+      try {
+        const res = await api.addBeer({
+          ...this.beerForm
+        })
+        const result = res.data.data
+        if (result.code) {
+          this.$message({
+            type: 'error',
+            message: result.msg
+          })
+          return
+        }
+        this.isBeerFormVisible = false
+        this.queryBeerList()
+        this.$message({
+          type: 'success',
+          message: '新增啤酒信息成功'
+        })
+      } catch (e) {
+        console.log(e)
+        this.$message({
+          type: 'error',
+          message: '新增啤酒信息失败'
+        })
+      }
     },
-    updateBeer () {
-      console.log('update')
+    async updateBeer () {
+      try {
+        const res = await api.updateBeer({
+          ...this.beerForm,
+          id: this.currentBeer.id
+        })
+        const result = res.data.data
+        if (result.code) {
+          this.$message({
+            type: 'error',
+            message: result.msg
+          })
+          return
+        }
+        this.isBeerFormVisible = false
+        this.queryBeerList()
+        this.$message({
+          type: 'success',
+          message: '更新啤酒信息成功'
+        })
+      } catch (e) {
+        console.log(e)
+        this.$message({
+          type: 'error',
+          message: '更新啤酒信息失败'
+        })
+      }
     },
     submitBeerForm () {
       this.$refs.beerForm.validate(valid => {
@@ -190,13 +248,41 @@ export default {
         confirmButtonText: '确定',
         cancelButtonText: '取消',
         type: 'warning'
-      }).then(() => {
-        console.log(nextStatus)
-        this.$message({
-          type: 'success',
-          message: `${nextStatusText}成功!`
-        })
+      }).then(async () => {
+        try {
+          const res = await api.updateBeerStatus({
+            id: row.id,
+            nextStatus
+          })
+          const result = res.data.data
+          if (result.code) {
+            this.$message({
+              type: 'error',
+              message: result.msg
+            })
+            return
+          }
+          this.queryBeerList()
+          this.$message({
+            type: 'success',
+            message: `${nextStatusText}成功!`
+          })
+        } catch (e) {
+          console.log(e)
+          this.$message({
+            type: 'error',
+            message: '更新啤酒状态失败'
+          })
+        }
       })
+    },
+    handleCurrentChange (current) {
+      this.pagination.currentPage = current
+      this.queryBeerList()
+    },
+    handleSizeChange (size) {
+      this.pagination.pageSize = size
+      this.queryBeerList()
     }
   }
 }
