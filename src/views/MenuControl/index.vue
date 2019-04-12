@@ -33,6 +33,9 @@
 </template>
 
 <script>
+import * as api from '@/api/screen'
+import * as beerApi from '@/api/beer'
+
 export default {
   data () {
     return {
@@ -41,83 +44,133 @@ export default {
       isSelectDialogVlisble: false,
       selectDialogTitle: '选择要展示的啤酒',
       selectedList: [],
-      currentScreen: null
+      currentScreen: {}
     }
   },
   mounted () {
     this.getScreenList()
-    this.getAvailableBeerList()
   },
   methods: {
-    getScreenList () {
-      this.screenList = [
-        { id: 0,
-          name: '屏幕一',
-          beerList: [
-            { id: 0, number: 4, brand: '气泡实验室', name: '及时雨浑浊IPA' },
-            { id: 0, number: 4, brand: '气泡实验室', name: '及时雨浑浊IPA' },
-            { id: 0, number: 4, brand: '气泡实验室', name: '及时雨浑浊IPA' }
-          ]
-        },
-        { id: 1, name: '屏幕二', beerList: [ { id: 0, number: 4, brand: '气泡实验室', name: '及时雨浑浊IPA' } ] },
-        { id: 2, name: '屏幕三', beerList: [ { id: 0, number: 4, brand: '气泡实验室', name: '及时雨浑浊IPA' } ] }
-      ]
-    },
-    getAvailableBeerList () {
-      this.selectTableData = [
-        {
-          id: 0,
-          number: 4,
-          brand: '气泡实验室',
-          name: '及时雨浑浊IPA',
-          price: 40
-        },
-        {
-          id: 1,
-          number: 4,
-          brand: '气泡实验室',
-          name: '及时雨浑浊IPA',
-          price: 40
-        },
-        {
-          id: 2,
-          number: 4,
-          brand: '气泡实验室',
-          name: '及时雨浑浊IPA',
-          price: 40
-        },
-        {
-          id: 3,
-          number: 4,
-          brand: '气泡实验室',
-          name: '及时雨浑浊IPA',
-          price: 40
+    // 查询屏幕列表
+    async getScreenList () {
+      try {
+        const res = await api.getScreenList()
+        const result = res.data.data
+        if (result.code) {
+          this.$message({
+            type: 'error',
+            message: result.msg
+          })
+          return
         }
-      ]
+        this.screenList = result
+      } catch (e) {
+        console.log(e)
+        this.$message({
+          type: 'error',
+          message: '更新屏幕信息失败'
+        })
+      }
     },
-    removeBeerFromScreen (beer, screen) {
-      console.log(beer)
-      console.log(screen)
-      this.$message({
-        type: 'success',
-        message: '删除成功！'
-      })
+    // 查询可用啤酒列表
+    async getAvailableBeerList () {
+      try {
+        const res = await beerApi.getBeerList({
+          status: 1,
+          currentPage: 1,
+          pageSize: 1000
+        })
+        const result = res.data.data
+        if (result.code) {
+          this.$message({
+            type: 'error',
+            message: result.msg
+          })
+          return
+        }
+        const screenBeerIds = this.currentScreen.beerList.map(beer => beer.id)
+        this.selectTableData = result.iData.filter(beer => !screenBeerIds.includes(beer.id))
+      } catch (e) {
+        console.log(e)
+        this.$message({
+          type: 'error',
+          message: '更新可用啤酒列表失败'
+        })
+      }
     },
-    showSelectDialog (screen) {
+    // 打开选择啤酒表单
+    async showSelectDialog (screen) {
       this.currentScreen = screen
+      await this.getAvailableBeerList()
       this.isSelectDialogVlisble = true
     },
+    // 啤酒选中回调
     handleSelectionChange (val) {
       this.selectedList = val
-      console.log(this.selectedList)
     },
-    submitSelected () {
-      console.log('submit!')
-      this.isSelectDialogVlisble = false
-      this.$message({
-        type: 'success',
-        message: '更新成功！'
-      })
+    // 提交选择啤酒表单
+    async submitSelected () {
+      if (!this.selectedList.length) {
+        this.$message({
+          type: 'warning',
+          message: '尚未选择任何啤酒'
+        })
+        return
+      }
+      try {
+        const res = await api.addToScreen({
+          screenId: this.currentScreen.id,
+          beerIds: this.selectedList.map(beer => beer.id)
+        })
+        const result = res.data
+        if (result.code) {
+          this.$message({
+            type: 'error',
+            message: result.msg
+          })
+          return
+        }
+        this.isSelectDialogVlisble = false
+        this.getScreenList()
+        this.$message({
+          type: 'success',
+          message: '添加成功'
+        })
+      } catch (e) {
+        console.log(e)
+        this.$message({
+          type: 'error',
+          message: '添加失败'
+        })
+      }
+    },
+    // 从屏幕移除啤酒
+    async removeBeerFromScreen (beer, screen) {
+      try {
+        const res = await api.removeFromScreen({
+          screenId: screen.id,
+          beerId: beer.id
+        })
+        const result = res.data
+        if (result.code) {
+          this.$message({
+            type: 'error',
+            message: result.msg
+          })
+          return
+        }
+        this.getScreenList()
+        this.$message({
+          type: 'success',
+          message: '删除成功'
+        })
+      } catch (e) {
+        console.log(e)
+        this.$message({
+          type: 'error',
+          message: '删除失败'
+        })
+      }
     }
   }
 }
