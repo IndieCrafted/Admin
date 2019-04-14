@@ -15,17 +15,10 @@
           {{ ~~scope.row.price }}
         </template>
       </el-table-column>
-      <el-table-column label="状态" width="60">
-        <template slot-scope="scope">
-          {{ scope.row.status ? '销售中' : '已下架' }}
-        </template>
-      </el-table-column>
       <el-table-column label="操作" width="100">
         <template slot-scope="scope">
           <el-button size="mini" type="text" @click="showUpdateForm(scope.row)">修改</el-button>
-          <el-button size="mini" type="text" @click="switchStatus(scope.row)">
-            {{ scope.row.status ? '下架' : '上架' }}
-          </el-button>
+          <el-button size="mini" type="text" @click="deleteBeer(scope.row)">删除</el-button>
         </template>
       </el-table-column>
     </el-table>
@@ -241,18 +234,15 @@ export default {
         }
       })
     },
-    switchStatus (row) {
-      const nextStatus = row.status ? 0 : 1
-      const nextStatusText = row.status ? '下架' : '上架'
-      this.$confirm(`确定要${nextStatusText}「${row.name}」吗?`, '提示', {
+    deleteBeer (row) {
+      this.$confirm(`确定要删除「${row.name}」吗?`, '警告', {
         confirmButtonText: '确定',
         cancelButtonText: '取消',
         type: 'warning'
       }).then(async () => {
         try {
-          const res = await api.updateBeerStatus({
-            id: row.id,
-            nextStatus
+          const res = await api.deleteBeer({
+            id: row.id
           })
           const result = res.data.data
           if (result.code) {
@@ -265,13 +255,13 @@ export default {
           this.queryBeerList()
           this.$message({
             type: 'success',
-            message: `${nextStatusText}成功!`
+            message: `删除成功`
           })
         } catch (e) {
           console.log(e)
           this.$message({
             type: 'error',
-            message: '更新啤酒状态失败'
+            message: '删除失败'
           })
         }
       })

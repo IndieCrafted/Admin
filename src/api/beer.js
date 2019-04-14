@@ -9,5 +9,5 @@ export const addBeer = data => api.post('/beer/create', data)
 // 修改啤酒
 export const updateBeer = data => api.put('/beer/update', data)
 
-// 变更状态
-export const updateBeerStatus = data => api.put('/beer/updateStatus', data)
+// 删除啤酒
+export const deleteBeer = data => api.delete('/beer/delete', data)
