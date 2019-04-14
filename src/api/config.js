@@ -2,7 +2,7 @@ import axios from 'axios'
 
 const isDev = window.location.host.indexOf('localhost') > -1
 
-const baseURL = isDev ? 'http://127.0.0.1:7001' : '/zfpt/saga'
+const baseURL = isDev ? 'http://127.0.0.1:7001' : 'https://api.wildnode.cc/beer/v1'
 
 const instance = axios.create({
   baseURL,
